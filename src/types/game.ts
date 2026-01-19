@@ -37,4 +37,5 @@ export interface GameState {
   currentRoom: GameRoom | null;
   isConnected: boolean;
   error: string | null;
+  systemMessage: string | null,
 }

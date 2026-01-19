@@ -11,6 +11,7 @@ import {
   setConnected,
   setError,
   resetGame,
+  setSystemMessage,
 } from "@/store/gameSlice";
 import { getSocket } from "@/services/socket";
 import {
@@ -23,14 +24,14 @@ import { MenuScreen } from "@/components/screens/MenuScreen";
 import { GameScreen } from "@/components/screens/GameScreen";
 import { ErrorToast } from "@/components/ui/ErrorToast";
 import { GameRoom, GameMode } from "@/types/game";
+import { SystemToast } from "@/components/ui/SystemToast";
 
 type Screen = "username" | "menu" | "game";
 
 const ShadowSignalGame: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { guestId, username, error, isConnected } = useSelector(
-    (state: RootState) => state.game,
-  );
+  const { currentRoom, guestId, username, error, systemMessage, isConnected } =
+    useSelector((state: RootState) => state.game);
   const [screen, setScreen] = useState<Screen>("username");
 
   // Initialize guestId and username from localStorage
@@ -65,8 +66,13 @@ const ShadowSignalGame: React.FC = () => {
       dispatch(setError(message));
       setTimeout(() => dispatch(setError(null)), 3000);
     });
+    socket.on("SYSTEM_MESSAGE", (message: string) => {
+      dispatch(setSystemMessage(message));
+      setTimeout(() => dispatch(setSystemMessage(null)), 5000);
+    });
 
     return () => {
+      socket.off("SYSTEM_MESSAGE");
       socket.off("connect");
       socket.off("disconnect");
       socket.off("GAME_STATE_UPDATE");
@@ -103,6 +109,13 @@ const ShadowSignalGame: React.FC = () => {
   };
 
   const handleLeaveRoom = () => {
+    const socket = getSocket();
+    const currentRoomCode = currentRoom?.roomCode;
+
+    if (currentRoomCode) {
+      socket.emit("LEAVE_GAME", { roomCode: currentRoomCode });
+    }
+
     dispatch(resetGame());
     setScreen("menu");
   };
@@ -134,6 +147,7 @@ const ShadowSignalGame: React.FC = () => {
   return (
     <>
       {error && <ErrorToast message={error} />}
+      {systemMessage && <SystemToast message={systemMessage} />}
       <GameScreen onLeaveRoom={handleLeaveRoom} />
     </>
   );
